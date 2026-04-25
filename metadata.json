@@ -1,0 +1,6 @@
+{
+  "name": "Genetic Inheritance Mediator (GIM)",
+  "description": "A privacy-first family health platform for modeling genetic inheritance, assessing heritable risks, and navigating NHS referral pathways using Gemini AI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

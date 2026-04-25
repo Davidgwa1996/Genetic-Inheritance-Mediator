@@ -1,0 +1,84 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() { return request.auth != null; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    // Check if user is a member of the family
+    function isMember(familyId) {
+      return isSignedIn() && exists(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid));
+    }
+    
+    // Check if user is the family admin
+    function isAdmin(familyId) {
+      return isSignedIn() && get(/databases/$(database)/documents/families/$(familyId)).data.adminId == request.auth.uid;
+    }
+
+    // --- Rules ---
+
+    // Families
+    match /families/{familyId} {
+      allow list: if isSignedIn() && resource.data.adminId == request.auth.uid;
+      allow get: if isMember(familyId);
+      allow create: if isSignedIn() && incoming().adminId == request.auth.uid;
+      allow update: if isAdmin(familyId);
+      
+      // Members
+      match /members/{memberId} {
+        allow list: if isMember(familyId);
+        allow get: if isMember(familyId);
+        allow create, update: if isAdmin(familyId) || (isSignedIn() && request.auth.uid == memberId);
+        allow delete: if isAdmin(familyId);
+      }
+
+      // Consents
+      match /consents/{memberId} {
+        allow list: if isMember(familyId);
+        allow get: if isMember(familyId); 
+        allow create, update: if isSignedIn() && request.auth.uid == memberId;
+      }
+
+      // Health Data
+      match /healthData/{dataId} {
+        allow list: if isMember(familyId);
+        allow create: if isMember(familyId) && incoming().memberId == request.auth.uid;
+        allow update, delete: if isMember(familyId) && existing().memberId == request.auth.uid;
+        
+        allow get: if isMember(familyId) && (
+          existing().memberId == request.auth.uid || 
+          (
+            get(/databases/$(database)/documents/families/$(familyId)/consents/$(existing().memberId)).data.shareHeartMarkers == true && existing().category == 'heart'
+          ) ||
+          (
+            get(/databases/$(database)/documents/families/$(familyId)/consents/$(existing().memberId)).data.shareCancerMarkers == true && existing().category == 'cancer'
+          ) ||
+          (
+            get(/databases/$(database)/documents/families/$(familyId)/consents/$(existing().memberId)).data.shareNeuroMarkers == true && existing().category == 'neuro'
+          )
+        );
+      }
+
+      // Audit Log
+      match /auditLog/{logId} {
+        allow list: if isMember(familyId);
+        allow create: if isMember(familyId);
+      }
+
+      // Risk Assessments
+      match /assessments/{assessmentId} {
+        allow list: if isMember(familyId);
+        allow read: if isMember(familyId);
+        allow create: if isMember(familyId);
+      }
+    }
+  }
+}

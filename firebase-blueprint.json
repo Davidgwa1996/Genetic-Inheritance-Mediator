@@ -1,0 +1,107 @@
+{
+  "entities": {
+    "Family": {
+      "title": "Family",
+      "description": "A group of individuals sharing a common genetic inheritance study context.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "adminId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "adminId", "createdAt"]
+    },
+    "Member": {
+      "title": "Member",
+      "description": "An invited or active participant in a Family Health Graph.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "email": { "type": "string" },
+        "pseudonym": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "member"] },
+        "status": { "type": "string", "enum": ["invited", "active"] },
+        "joinedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "email", "pseudonym", "role", "status"]
+    },
+    "Consent": {
+      "title": "Consent",
+      "description": "Granular data sharing permissions for a specific member.",
+      "type": "object",
+      "properties": {
+        "shareHeartRisk": { "type": "boolean" },
+        "shareHeartMarkers": { "type": "boolean" },
+        "shareCancerRisk": { "type": "boolean" },
+        "shareCancerMarkers": { "type": "boolean" },
+        "shareNeuroRisk": { "type": "boolean" },
+        "shareNeuroMarkers": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "HealthData": {
+      "title": "Health Data",
+      "description": "Pseudonymised genetic or clinical health records.",
+      "type": "object",
+      "properties": {
+        "memberId": { "type": "string" },
+        "type": { "type": "string", "enum": ["genetic", "clinical", "note"] },
+        "category": { "type": "string", "enum": ["heart", "cancer", "neuro", "other"] },
+        "content": { "type": "string" },
+        "originalFileName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["memberId", "type", "category", "content", "createdAt"]
+    },
+    "AuditLog": {
+      "title": "Audit Log",
+      "description": "An immutable record of data access or consent changes.",
+      "type": "object",
+      "properties": {
+        "actorId": { "type": "string" },
+        "action": { "type": "string" },
+        "targetId": { "type": "string" },
+        "details": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    },
+    "RiskAssessment": {
+      "title": "Risk Assessment",
+      "description": "System-generated genetic risk modeling results.",
+      "type": "object",
+      "properties": {
+        "familyId": { "type": "string" },
+        "heatmap": { "type": "object" },
+        "summary": { "type": "string" },
+        "referrals": { "type": "array", "items": { "type": "object" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/families/{familyId}": {
+      "schema": "Family",
+      "description": "Root family document."
+    },
+    "/families/{familyId}/members/{memberId}": {
+      "schema": "Member",
+      "description": "Family members."
+    },
+    "/families/{familyId}/consents/{memberId}": {
+      "schema": "Consent",
+      "description": "Permissions per member."
+    },
+    "/families/{familyId}/healthData/{dataId}": {
+      "schema": "HealthData",
+      "description": "Storage for health records."
+    },
+    "/families/{familyId}/auditLog/{logId}": {
+      "schema": "AuditLog",
+      "description": "Immutable history."
+    },
+    "/families/{familyId}/assessments/{assessmentId}": {
+      "schema": "RiskAssessment",
+      "description": "AI-generated risk reports."
+    }
+  }
+}
