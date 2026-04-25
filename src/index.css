@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -6,8 +7,13 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-heading: var(--font-sans);
-    --font-sans: 'Inter', 'Geist Variable', sans-serif;
+    --font-heading: "Space Grotesk", sans-serif;
+    --font-sans: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    
+    --color-nhs-blue: #005EB8;
+    --color-nhs-dark: #002F5C;
+    /* ... rest of the vars ... */
     
     --color-nhs-blue: #005EB8;
     --color-nhs-dark: #002F5C;
