@@ -23,29 +23,30 @@ export const SystemManifesto: React.FC = () => {
               <div className="p-8 bg-slate-50 rounded-[3rem] border border-slate-100">
                 <h3 className="text-xl font-black text-[#002F5C] mb-6 flex items-center gap-3">
                   <UserPlus className="w-6 h-6 text-blue-600" />
-                  1. How It Works (The Connection)
+                  1. Simple Flow: Your Health "Bank Account"
                 </h3>
                 <p className="text-slate-600 leading-relaxed font-medium">
-                  Imagine if your family had a secret book where everyone wrote down how they stayed healthy or when they got sick. 
-                  This system is like that, but smarter. You join, add your parents, grandparents, and children, and tell the system a little bit about their health. 
-                  It then uses advanced technology to "connect the dots," creating a digital map of your family’s life.
+                  We treat your health data like money in a bank. You open your private vault (Sign Up), 
+                  put in your family stories (Data Input), and the system uses its "Digital Brain" (AI) 
+                  to tell you how to keep your health "wealth" safe for years to come. It’s a simple 
+                  system built so that everyone—from students to grandparents—can protect their future.
                 </p>
               </div>
 
               <div className="p-8 bg-blue-50 rounded-[3rem] border border-blue-100">
                 <h3 className="text-xl font-black text-[#002F5C] mb-6 flex items-center gap-3">
                   <Heart className="w-6 h-6 text-red-500" />
-                  2. What to Feed It (The Best Results)
+                  2. Essential Data: The Magic Ingredients
                 </h3>
                 <p className="text-slate-600 leading-relaxed font-medium mb-4">
-                  To get the best "crystal ball" view of your health, the system needs simple but essential ingredients:
+                  Think of the system like a chef. To give you the best meal (Health Report), it needs the best ingredients:
                 </p>
                 <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {[
                     "Known family illnesses (Heart, Sugar, Blood)",
-                    "Basic Bio-Markers (Age, Blood Group)",
-                    "Lifestyle Habits (Smoking, Fitness)",
-                    "Ancestral Origins (Where your people come from)"
+                    "Bio-Markers (Age, Blood Group, Gender)",
+                    "Ancestry (Where your family originated)",
+                    "Lifestyle (Daily habits and environment)"
                   ].map((item, i) => (
                     <li key={i} className="flex items-center gap-3 text-sm font-bold text-slate-700">
                       <div className="w-2 h-2 rounded-full bg-blue-500" />
@@ -57,35 +58,35 @@ export const SystemManifesto: React.FC = () => {
 
               <div className="p-8 bg-[#002F5C] rounded-[3rem] text-white shadow-2xl">
                 <h3 className="text-xl font-black mb-6 flex items-center gap-3">
-                  <Zap className="w-6 h-6 text-amber-400" />
-                  3. The Gap It Closes (The Great Benefit)
+                  <Shield className="w-6 h-6 text-emerald-400" />
+                  3. The Technical Blueprint (For Recruiters)
                 </h3>
-                <p className="opacity-80 leading-relaxed font-medium mb-6">
-                  Most of us don't know exactly what our great-grandparents struggled with. We live in a "Knowledge Gap." 
-                  This system closes that gap by preserving history. It helps you see a problem 10 years before it happens, 
-                  giving you and your doctors a head start to prevent it. It’s like having a lighthouse for your health journey.
-                </p>
-                <div className="grid grid-cols-2 gap-6 pt-6 border-t border-white/10">
-                  <div>
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-300 mb-2">Benefit A</h4>
-                    <p className="text-xs font-bold leading-tight">Early warning signs for the next generation.</p>
-                  </div>
-                  <div>
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-300 mb-2">Benefit B</h4>
-                    <p className="text-xs font-bold leading-tight">Secure, private vault that never forgets.</p>
+                <div className="space-y-6">
+                  <p className="opacity-80 leading-relaxed font-medium">
+                    Gen-Nexus is a high-performance, full-stack application built for the intersection of Biometric Data and AI.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-2">Frontend Stack</h4>
+                      <p className="text-xs opacity-70">React 18 + Vite, TypeScript, Tailwind CSS, Framer Motion for high-fidelity interactive state management.</p>
+                    </div>
+                    <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-2">Backend & AI</h4>
+                      <p className="text-xs opacity-70">Firebase (Firestore + Auth) with custom Security Rules. Neural Synthesis powered by Gemini 1.5 Pro API.</p>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <div className="p-8 bg-white border-2 border-dashed border-slate-200 rounded-[3rem]">
                 <h3 className="text-xl font-black text-[#002F5C] mb-6 flex items-center gap-3">
-                  <Shield className="w-6 h-6 text-emerald-500" />
-                  4. How to Access (The Doorway)
+                  <Zap className="w-6 h-6 text-amber-500" />
+                  4. The Benefit: Closing the "Knowledge Gap"
                 </h3>
                 <p className="text-slate-600 leading-relaxed font-medium">
-                  You can access your family portal from any phone or computer. You own your data. 
-                  You choose who sees it. It is built for ease of use—no complex science degrees required. 
-                  Just sign in with your Google account or email, and start building your family's health legacy today.
+                  We often don't know what our great-grandparents suffered from until it happens to us. 
+                  This is the **Ancestral Knowledge Gap**. Gen-Nexus preserves this history forever in a secure, digital format. 
+                  It allows you to warn your children about risks 20 years in advance, changing "I wish we knew" into "We know exactly what to do."
                 </p>
               </div>
             </div>
