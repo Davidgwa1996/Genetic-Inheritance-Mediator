@@ -8,15 +8,15 @@ interface RiskHeatmapProps {
 
 export const RiskHeatmap: React.FC<RiskHeatmapProps> = ({ data }) => {
   // Flatten data for Recharts
-  const chartData = data.flatMap(member => 
-    member.risks.map((risk: any) => ({
+   const chartData = data?.flatMap(member => 
+    member.risks?.map((risk: any) => ({
       name: member.pseudonym,
       fullLabel: `${member.pseudonym} - ${risk.condition}`,
       condition: risk.condition,
       score: risk.score,
       reasoning: risk.reasoning
     }))
-  );
+  ) || [];
 
   const getBarColor = (score: number) => {
     if (score > 70) return '#ef4444'; // Red
@@ -52,7 +52,7 @@ export const RiskHeatmap: React.FC<RiskHeatmapProps> = ({ data }) => {
               }}
             />
             <Bar dataKey="score" radius={[0, 4, 4, 0]}>
-              {chartData.map((entry, index) => (
+              {chartData?.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={getBarColor(entry.score)} />
               ))}
             </Bar>

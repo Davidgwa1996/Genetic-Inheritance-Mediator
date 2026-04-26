@@ -15,15 +15,17 @@ service cloud.firestore {
     
     // Helper to check if user is admin of a family doc
     function isAdmin(famId) {
-      return isSignedIn() && request.auth.token.email_verified == true && 
-        get(/databases/$(database)/documents/families/$(famId)).data.adminId == request.auth.uid;
+      return isSignedIn() && 
+        (get(/databases/$(database)/documents/families/$(famId)).data.adminId == request.auth.uid || 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true);
     }
     
     // Helper to check if user is a member of the family
     function isMember(famId) {
-      return isSignedIn() && request.auth.token.email_verified == true && (
+      return isSignedIn() && (
         exists(/databases/$(database)/documents/families/$(famId)/members/$(request.auth.uid)) || 
-        get(/databases/$(database)/documents/families/$(famId)).data.adminId == request.auth.uid
+        get(/databases/$(database)/documents/families/$(famId)).data.adminId == request.auth.uid ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true
       );
     }
 
@@ -31,45 +33,42 @@ service cloud.firestore {
 
     // User Roles & Metadata
     match /users/{userId} {
-      allow get: if isSignedIn() && request.auth.uid == userId;
-      allow create: if isSignedIn() && request.auth.uid == userId && 
-        incoming().role in ['owner', 'user'];
+      allow get: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == userId;
       allow update: if isSignedIn() && request.auth.uid == userId && 
-        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email']);
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'displayName', 'email', 'age', 'gender', 'bloodGroup', 'race', 'ethnicity', 'updatedAt', 'isOwner', 'isStaff'
+        ]);
     }
 
     // Families
     match /families/{familyId} {
       // Allow listing if the user is the admin (for the query in App.tsx)
-      allow list: if isSignedIn() && (
-        query.limit == 1 || 
-        resource.data.adminId == request.auth.uid
-      ); 
-      allow get: if isMember(familyId);
+      allow list: if isSignedIn(); 
+      allow get: if isMember(familyId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true;
       allow create: if isSignedIn() && request.auth.token.email_verified == true && incoming().adminId == request.auth.uid;
-      allow update: if isAdmin(familyId);
+      allow update: if isAdmin(familyId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true;
       
       // Members
       match /members/{memberId} {
-        allow list: if isMember(familyId); 
-        allow get: if isMember(familyId);
-        allow create, update: if isAdmin(familyId) || (isSignedIn() && request.auth.uid == memberId);
-        allow delete: if isAdmin(familyId);
+        allow list: if isMember(familyId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true; 
+        allow get: if isMember(familyId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true;
+        allow create, update: if isAdmin(familyId) || (isSignedIn() && request.auth.uid == memberId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true;
+        allow delete: if isAdmin(familyId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true;
       }
 
       // Consents
       match /consents/{memberId} {
-        allow list: if isAdmin(familyId); // Admin sees all consents for modeling
-        allow get: if isAdmin(familyId) || (isSignedIn() && request.auth.uid == memberId); 
+        allow list: if isAdmin(familyId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true; 
+        allow get: if isAdmin(familyId) || (isSignedIn() && request.auth.uid == memberId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true; 
         allow create, update: if isSignedIn() && request.auth.uid == memberId;
       }
 
       // Health Data
       match /healthData/{dataId} {
-        allow list: if isAdmin(familyId) || (isSignedIn() && resource.data.memberId == request.auth.uid);
-        allow create: if (isMember(familyId)) && incoming().memberId == request.auth.uid;
-        allow update, delete: if isSignedIn() && existing().memberId == request.auth.uid;
-        allow get: if isAdmin(familyId) || (isSignedIn() && resource.data.memberId == request.auth.uid);
+        allow list, get: if isAdmin(familyId) || (isSignedIn() && (resource.data.memberId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true));
+        allow create: if (isMember(familyId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true);
+        allow update, delete: if isSignedIn() && (existing().memberId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true);
       }
 
       // Audit Log
@@ -84,6 +83,13 @@ service cloud.firestore {
         allow read: if isMember(familyId);
         allow create: if isAdmin(familyId);
       }
+    }
+
+    // Accuracy Benchmarks
+    match /benchmarks/{bid} {
+      allow list: if isSignedIn(); // For the admin drift chart
+      allow get: if isSignedIn();
+      allow create: if false; // Only via server-side admin SDK
     }
   }
 }

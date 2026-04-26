@@ -92,27 +92,37 @@ export const ConsentManager: React.FC<ConsentManagerProps> = ({ familyId, member
               </div>
               
               <div className="space-y-3">
-                <div className="flex items-center justify-between group cursor-pointer" onClick={() => !localConsent.isRevoked && toggle(`share${cat.id.charAt(0).toUpperCase() + cat.id.slice(1)}Risk`)}>
+                <div className="flex items-center justify-between group cursor-pointer" onClick={(e) => {
+                  e.stopPropagation();
+                  if (!localConsent.isRevoked) toggle(`share${cat.id.charAt(0).toUpperCase() + cat.id.slice(1)}Risk`);
+                }}>
                   <div className="space-y-0.5">
                     <Label className="text-[11px] font-bold text-slate-700 cursor-pointer">Risk Attribution</Label>
                     <p className="text-[9px] text-slate-400 font-medium">Share AI predicted scores</p>
                   </div>
                   <Checkbox 
                     checked={localConsent[`share${cat.id.charAt(0).toUpperCase() + cat.id.slice(1)}Risk`]} 
+                    onCheckedChange={() => !localConsent.isRevoked && toggle(`share${cat.id.charAt(0).toUpperCase() + cat.id.slice(1)}Risk`)}
                     disabled={localConsent.isRevoked}
+                    onClick={(e) => e.stopPropagation()}
                   />
                 </div>
 
                 <div className="h-px bg-slate-50" />
 
-                <div className="flex items-center justify-between group cursor-pointer" onClick={() => !localConsent.isRevoked && toggle(`share${cat.id.charAt(0).toUpperCase() + cat.id.slice(1)}Markers`)}>
+                <div className="flex items-center justify-between group cursor-pointer" onClick={(e) => {
+                  e.stopPropagation();
+                  if (!localConsent.isRevoked) toggle(`share${cat.id.charAt(0).toUpperCase() + cat.id.slice(1)}Markers`);
+                }}>
                   <div className="space-y-0.5">
                     <Label className="text-[11px] font-bold text-slate-700 cursor-pointer">Deep Phenotype</Label>
                     <p className="text-[9px] text-slate-400 font-medium">Share raw markers & reports</p>
                   </div>
                   <Checkbox 
                     checked={localConsent[`share${cat.id.charAt(0).toUpperCase() + cat.id.slice(1)}Markers`]} 
+                    onCheckedChange={() => !localConsent.isRevoked && toggle(`share${cat.id.charAt(0).toUpperCase() + cat.id.slice(1)}Markers`)}
                     disabled={localConsent.isRevoked}
+                    onClick={(e) => e.stopPropagation()}
                   />
                 </div>
               </div>
