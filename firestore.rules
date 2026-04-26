@@ -1,95 +1,111 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 1. Default Deny
+    // ---------------------------------------------------------
+    // 3. Helper Functions
+    // ---------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    // Auth tokens contain email if using Google or Email link
+    function isOwner() {
+      return isSignedIn() && request.auth.token.email == 'njaudavid5@gmail.com';
+    }
+
+    function isUserSelf(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Master Gate (Relational Sync) - Pillar 1
+    function getFamily(familyId) {
+      return get(/databases/$(database)/documents/families/$(familyId)).data;
+    }
+
+    // Note: get() lookups are limited to 10 per request.
+    // If a list query triggers this, it might fail for non-admins if not optimized.
+    function isFamilyMember(familyId) {
+      let familyData = getFamily(familyId);
+      return isSignedIn() && (familyData.adminId == request.auth.uid || request.auth.uid in familyData.memberIds);
+    }
+
+    // ---------------------------------------------------------
+    // 0. Global Safety Net
+    // ---------------------------------------------------------
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // --- Helpers ---
-    function isSignedIn() { return request.auth != null; }
-    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
-    function incoming() { return request.resource.data; }
-    function existing() { return resource.data; }
-    
-    // Helper to check if user is admin of a family doc
-    function isAdmin(famId) {
-      return isSignedIn() && 
-        (get(/databases/$(database)/documents/families/$(famId)).data.adminId == request.auth.uid || 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true);
-    }
-    
-    // Helper to check if user is a member of the family
-    function isMember(famId) {
-      return isSignedIn() && (
-        exists(/databases/$(database)/documents/families/$(famId)/members/$(request.auth.uid)) || 
-        get(/databases/$(database)/documents/families/$(famId)).data.adminId == request.auth.uid ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true
-      );
-    }
-
-    // --- Rules ---
-
-    // User Roles & Metadata
+    // ---------------------------------------------------------
+    // Users Collection
+    // ---------------------------------------------------------
     match /users/{userId} {
-      allow get: if isSignedIn();
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isSignedIn() && request.auth.uid == userId && 
-        incoming().diff(existing()).affectedKeys().hasOnly([
-          'displayName', 'email', 'age', 'gender', 'bloodGroup', 'race', 'ethnicity', 'updatedAt', 'isOwner', 'isStaff'
-        ]);
+      allow read: if isOwner() || isUserSelf(userId);
+      allow create: if isSignedIn() && isUserSelf(userId);
+      allow update: if isOwner() || isUserSelf(userId);
     }
 
-    // Families
+    // ---------------------------------------------------------
+    // Benchmarks Collection
+    // ---------------------------------------------------------
+    match /benchmarks/{benchmarkId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner();
+    }
+
+    // ---------------------------------------------------------
+    // Families Collection & Subcollections
+    // ---------------------------------------------------------
     match /families/{familyId} {
-      // Allow listing if the user is the admin (for the query in App.tsx)
-      allow list: if isSignedIn(); 
-      allow get: if isMember(familyId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true;
-      allow create: if isSignedIn() && request.auth.token.email_verified == true && incoming().adminId == request.auth.uid;
-      allow update: if isAdmin(familyId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true;
+      allow read: if isOwner() || (isSignedIn() && (
+        resource.data.adminId == request.auth.uid || 
+        request.auth.uid in resource.data.memberIds
+      ));
+      allow create: if isVerified();
+      allow update: if isOwner() || (isSignedIn() && resource.data.adminId == request.auth.uid);
+      allow delete: if isOwner();
+
+      // Subcollections
       
-      // Members
       match /members/{memberId} {
-        allow list: if isMember(familyId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true; 
-        allow get: if isMember(familyId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true;
-        allow create, update: if isAdmin(familyId) || (isSignedIn() && request.auth.uid == memberId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true;
-        allow delete: if isAdmin(familyId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true;
+        // Pillar 8: Avoid get() in list queries for non-admins if possible.
+        // For members collection, we often query by userId.
+        allow list: if isOwner() || (isSignedIn() && (resource.data.userId == request.auth.uid || isFamilyMember(familyId)));
+        allow get: if isOwner() || isFamilyMember(familyId);
+        allow create: if isOwner() || (isVerified() && request.resource.data.userId == request.auth.uid);
+        allow update: if isOwner() || (isSignedIn() && resource.data.userId == request.auth.uid);
       }
 
-      // Consents
-      match /consents/{memberId} {
-        allow list: if isAdmin(familyId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true; 
-        allow get: if isAdmin(familyId) || (isSignedIn() && request.auth.uid == memberId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true; 
-        allow create, update: if isSignedIn() && request.auth.uid == memberId;
+      match /consents/{consentId} {
+        allow read: if isOwner() || isFamilyMember(familyId) || isUserSelf(consentId);
+        allow write: if isOwner() || isUserSelf(consentId);
       }
 
-      // Health Data
       match /healthData/{dataId} {
-        allow list, get: if isAdmin(familyId) || (isSignedIn() && (resource.data.memberId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true));
-        allow create: if (isMember(familyId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true);
-        allow update, delete: if isSignedIn() && (existing().memberId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isOwner == true);
+        // Secure List Queries (Pillar 8)
+        allow list: if isOwner() || (isSignedIn() && (resource.data.uploadedBy == request.auth.uid || resource.data.memberId == request.auth.uid));
+        allow get: if isOwner() || isFamilyMember(familyId);
+        allow create: if isOwner() || (isVerified() && request.resource.data.uploadedBy == request.auth.uid);
+        allow delete: if isOwner();
       }
 
-      // Audit Log
-      match /auditLog/{logId} {
-        allow list: if isAdmin(familyId);
-        allow create: if isMember(familyId);
+      match /auditLogs/{logId} {
+        allow read: if isOwner() || isFamilyMember(familyId);
+        allow create: if isVerified();
       }
 
-      // Risk Assessments
       match /assessments/{assessmentId} {
-        allow list: if isMember(familyId);
-        allow read: if isMember(familyId);
-        allow create: if isAdmin(familyId);
+        allow read: if isOwner() || isFamilyMember(familyId);
+        allow write: if isOwner();
       }
-    }
-
-    // Accuracy Benchmarks
-    match /benchmarks/{bid} {
-      allow list: if isSignedIn(); // For the admin drift chart
-      allow get: if isSignedIn();
-      allow create: if false; // Only via server-side admin SDK
     }
   }
 }

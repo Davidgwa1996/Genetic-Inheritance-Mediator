@@ -16,10 +16,15 @@ interface DataUploaderProps {
   currentUserId: string;
   members: FamilyMember[];
   auditLogs?: any[];
+  initialTargetId?: string;
 }
 
-export const DataUploader: React.FC<DataUploaderProps> = ({ familyId, currentUserId, members, auditLogs = [] }) => {
-   const [targetMemberId, setTargetMemberId] = React.useState(currentUserId);
+export const DataUploader: React.FC<DataUploaderProps> = ({ familyId, currentUserId, members, auditLogs = [], initialTargetId }) => {
+   const [targetMemberId, setTargetMemberId] = React.useState(initialTargetId || currentUserId);
+
+   React.useEffect(() => {
+     if (initialTargetId) setTargetMemberId(initialTargetId);
+   }, [initialTargetId]);
   const [type, setType] = React.useState('genetic');
   const [category, setCategory] = React.useState('heart');
   const [fileContent, setFileContent] = React.useState('');
@@ -70,7 +75,7 @@ export const DataUploader: React.FC<DataUploaderProps> = ({ familyId, currentUse
         hospitalNode: 'NEXUS-ALPHA-1'
       });
 
-      const logRef = doc(db, 'families', familyId, 'auditLog', `upload-${Date.now()}`);
+      const logRef = doc(db, 'families', familyId, 'auditLogs', `upload-${Date.now()}`);
       await setDoc(logRef, {
         actorId: currentUserId,
         action: 'UPLOAD_DATA',
@@ -118,7 +123,7 @@ export const DataUploader: React.FC<DataUploaderProps> = ({ familyId, currentUse
               <SelectContent className="rounded-2xl border-slate-100 shadow-2xl">
                 {members?.map(m => (
                   <SelectItem key={m.id} value={m.id} className="rounded-xl font-bold">
-                    {m.name} ({m.role})
+                    {m.fullName || m.pseudonym} ({m.role})
                   </SelectItem>
                 ))}
               </SelectContent>

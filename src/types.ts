@@ -2,9 +2,12 @@ export interface FamilyMember {
   id: string;
   userId: string;
   name: string;
+  fullName?: string;
+  email?: string;
   role: 'owner' | 'user';
   pseudonym: string;
   relation?: string;
+  status?: string;
 }
 
 export interface Family {

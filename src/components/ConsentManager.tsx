@@ -38,7 +38,7 @@ export const ConsentManager: React.FC<ConsentManagerProps> = ({ familyId, member
         updatedAt: serverTimestamp()
       }, { merge: true });
       
-      const logRef = doc(db, 'families', familyId, 'auditLog', `consent-${Date.now()}`);
+      const logRef = doc(db, 'families', familyId, 'auditLogs', `consent-${Date.now()}`);
       await setDoc(logRef, {
         actorId: memberId,
         action: 'UPDATE_CONSENT',

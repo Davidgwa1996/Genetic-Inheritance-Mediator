@@ -94,13 +94,18 @@ async function startServer() {
       });
 
       const prompt = `
-        You are a Clinical Genetic Consultant. Analyze this PRS-Lite health pattern.
+        You are a Clinical Genetic Consultant specializing in UK Public Health. Analyze this PRS-Lite health pattern.
         
         USER CONTEXT:
         Current User ID: ${userId}
         Filtered Health Patterns: ${JSON.stringify(filteredHealthData)}
         Community PRS-Lite Scores: ${JSON.stringify(prsScores)}
-        Query: ${queryIntent}
+        Query Intent: ${queryIntent}
+
+        CORE ANALYSIS FOCUS (UK Context):
+        1. Smoking-Related Vulnerabilities: Analyze genetic predisposition to respiratory conditions or sensitivity to tobacco carcinogens.
+        2. Cancer Surveillance: Focus on familial cancer clusters and early monitoring steps.
+        3. UK-Specific NHS Screening Guidance.
 
         REQUIREMENTS:
         1. CHAIN-OF-VERIFICATION STAGE 1 (Google Search):
@@ -231,6 +236,51 @@ async function startServer() {
     } catch (error) {
       console.error("Benchmark Error:", error);
       res.status(500).json({ error: "Benchmark run failed" });
+    }
+  });
+
+  // 6. Talent & Career Mapping Engine
+  app.post("/api/generate-talent-map", async (req, res) => {
+    try {
+      const { userId, birthData } = req.body;
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+      const prompt = `
+        You are a Talent & Development Strategist specializing in Genomic Predisposition.
+        Analyze child attributes to suggest potential excellence paths.
+        
+        INPUT DATA:
+        Birth/Early Childhood Traits: ${JSON.stringify(birthData)}
+        
+        TASKS:
+        1. Identify Physical Predispositions (e.g. fast-twitch muscle fibers for sports like football or endurance for swimming).
+        2. Identify Cognitive/Artistic Strengths (e.g. musical pitch, spatial reasoning, mathematical logic).
+        3. Provide 3 Career/Hobby Paths:
+           - Path 1: Athletic-Focused
+           - Path 2: Academic-Focused
+           - Path 3: Creative/Social-Focused
+           
+        Format as JSON:
+        {
+          "physical_profile": "string",
+          "cognitive_profile": "string",
+          "recommendations": [
+            { "category": "Sports", "path": "Football", "why": "...", "emphasis": "Speed & Coordination" },
+            { "category": "Academic", "path": "...", "why": "...", "emphasis": "..." }
+          ]
+        }
+      `;
+
+      const result = await model.generateContent(prompt);
+      const responseText = result.response.text();
+      const cleanJson = responseText.substring(
+        responseText.indexOf("{"),
+        responseText.lastIndexOf("}") + 1
+      );
+      res.json(JSON.parse(cleanJson));
+    } catch (error) {
+      console.error("Talent Map Error:", error);
+      res.status(500).json({ error: "Failed to generate talent map" });
     }
   });
 
