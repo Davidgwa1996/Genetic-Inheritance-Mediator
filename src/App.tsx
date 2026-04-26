@@ -16,6 +16,14 @@ import { RiskHeatmap } from './components/RiskHeatmap';
 import { runRiskAssessment, runAccuracyBenchmark, RiskAssessmentResult } from './services/gemini';
 import { Toaster } from '@/components/ui/sonner';
 import { 
+  Dialog, 
+  DialogTrigger, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription 
+} from '@/components/ui/dialog';
+import { 
   Shield, 
   Activity, 
   Users, 
@@ -41,12 +49,14 @@ import {
   CheckCircle2,
   Trash2,
   ShieldCheck,
-  Search
+  Search,
+  Info
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 import { Background } from './components/Background';
+import { SystemManifesto } from './components/SystemManifesto';
 
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -114,7 +124,7 @@ export default function App() {
 
   // Auth Form State
   const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'landing'>('landing');
-  const [authRole, setAuthRole] = useState<'owner' | 'user'>('user');
+  const [authRole, setAuthRole] = useState<'owner' | 'user'>('owner');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -180,7 +190,7 @@ export default function App() {
     setIsAuthenticating(true);
     try {
       // Custom sign up to include extra fields
-      const res = await signUpWithEmail(email, password, displayName, authRole === 'owner');
+      const res = await signUpWithEmail(email, password, displayName, true); // Always owner
       // Update the user document with bio markers
       const userRef = doc(db, 'users', res.uid);
       await setDoc(userRef, {
@@ -189,17 +199,15 @@ export default function App() {
         race,
         ethnicity,
         bloodGroup,
-        isOwner: authRole === 'owner' || email === 'njaudavid5@gmail.com',
-        role: authRole === 'owner' || email === 'njaudavid5@gmail.com' ? 'owner' : 'user'
+        isOwner: true,
+        role: 'owner'
       }, { merge: true });
 
-      toast.success("Account created! Please check your email for verification.");
-      setAuthMode('signin');
-      // Force reload to pick up new user state if needed
-      window.location.reload();
+      toast.success("Identity profile created. Verifying bio-nexus...");
+      // The onAuthStateChanged will pick up the user and show the verification pending screen
     } catch (error: any) {
       console.error(error);
-      toast.error(error.message || "Failed to create account");
+      toast.error(error.message || "Failed to create identity");
     } finally {
       setIsAuthenticating(false);
     }
@@ -233,7 +241,7 @@ export default function App() {
             uid: u.uid,
             email: u.email,
             displayName: u.displayName,
-            role: u.email === 'njaudavid5@gmail.com' ? 'owner' : 'user',
+            role: 'owner',
             createdAt: serverTimestamp(),
             // Default bio markers for Google signups (users can update later)
             age: 0,
@@ -342,40 +350,45 @@ export default function App() {
 
   const createFamily = async () => {
     if (!user) return;
-    if (!user.emailVerified) {
-      toast.error("Please verify your email before initializing a family graph.");
-      return;
-    }
-    // Check if family already exists for this owner
-    const existingFam = query(collection(db, 'families'), where('adminId', '==', user.uid));
-    const snap = await getDocs(existingFam);
-    if (!snap.empty) {
-      toast.info("Your clinical graph is already active.");
-      return;
-    }
+    setIsDataLoading(true);
 
-    const famId = `fam-${user.uid}`;
+    const famId = `vault-${user.uid}`;
     const famRef = doc(db, 'families', famId);
-    await setDoc(famRef, {
-      name: `${user.displayName}'s Family Health Graph`,
-      adminId: user.uid,
-      memberIds: [user.uid],
-      createdAt: serverTimestamp()
-    });
     
-    const memberRef = doc(db, 'families', famId, 'members', user.uid);
-    await setDoc(memberRef, {
-      userId: user.uid,
-      email: user.email,
-      fullName: user.displayName,
-      pseudonym: 'Proband (Admin)',
-      role: 'admin',
-      status: 'active',
-      joinedAt: serverTimestamp()
-    });
+    try {
+      await setDoc(famRef, {
+        name: `Gen-Nexus Digital Vault [${user.displayName}]`,
+        adminId: user.uid,
+        memberIds: [user.uid],
+        createdAt: serverTimestamp(),
+        type: 'personal'
+      });
+      
+      const memberRef = doc(db, 'families', famId, 'members', user.uid);
+      await setDoc(memberRef, {
+        userId: user.uid,
+        email: user.email,
+        fullName: user.displayName,
+        pseudonym: 'Proband (Vault Owner)',
+        role: 'admin',
+        status: 'active',
+        joinedAt: serverTimestamp()
+      });
 
-    toast.success("Health Vault completed");
+      toast.success("Personal Health Vault Initialized");
+    } catch (e) {
+      console.error("Vault initialization failed:", e);
+    } finally {
+      setIsDataLoading(false);
+    }
   };
+
+  // Auto-initialize vault when verified
+  useEffect(() => {
+    if (user && user.emailVerified && userRole === 'owner' && !family && !isDataLoading) {
+      createFamily();
+    }
+  }, [user, userRole, family, isDataLoading]);
 
   const [isUpdatingBio, setIsUpdatingBio] = useState(false);
   const handleUpdateBio = async () => {
@@ -558,6 +571,11 @@ export default function App() {
     const isAsian = (ethnicity || race || '').toLowerCase().includes('asian');
     const isAfrican = (ethnicity || race || '').toLowerCase().includes('african');
     const ageNum = parseInt(age as string) || 30;
+
+    // Simulate clinical history data for the demo if not explicitly provided
+    const hasCancerHistory = false;
+    const isSmoker = false;
+    const interestVector = "Bio-Computational Research & Genomic Data Science";
 
     await new Promise(r => setTimeout(r, 1500));
     setSimulationStep(2);
@@ -825,29 +843,10 @@ export default function App() {
                     </h2>
                     <p className="text-slate-500 text-sm font-medium">
                       {authMode === 'signin' 
-                        ? 'Reconnect to your familial health metadata vault.' 
-                        : 'Deploy your genetic profile to the generational nexus.'}
+                        ? 'Reconnect to your individual health metadata vault.' 
+                        : 'Deploy your genetic profile to the secure nexus.'}
                     </p>
                   </div>
-
-                  {authMode === 'signup' && (
-                    <div className="grid grid-cols-2 gap-4 mb-8">
-                       <button 
-                         onClick={() => setAuthRole('user')}
-                         className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 group ${authRole === 'user' ? 'border-blue-500 bg-blue-50' : 'border-slate-100 bg-white hover:border-slate-300'}`}
-                       >
-                          <UserIcon className={`w-6 h-6 ${authRole === 'user' ? 'text-blue-500' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                          <span className={`text-[10px] font-black uppercase tracking-widest ${authRole === 'user' ? 'text-blue-600' : 'text-slate-500'}`}>Family User</span>
-                       </button>
-                       <button 
-                         onClick={() => setAuthRole('owner')}
-                         className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 group ${authRole === 'owner' ? 'border-[#002F5C] bg-slate-50' : 'border-slate-100 bg-white hover:border-slate-300'}`}
-                       >
-                          <Shield className={`w-6 h-6 ${authRole === 'owner' ? 'text-[#002F5C]' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                          <span className={`text-[10px] font-black uppercase tracking-widest ${authRole === 'owner' ? 'text-[#002F5C]' : 'text-slate-500'}`}>Family Owner</span>
-                       </button>
-                    </div>
-                  )}
 
                   <form className="space-y-6" onSubmit={authMode === 'signin' ? handleSignIn : handleSignUp}>
                     {authMode === 'signup' && (
@@ -1042,6 +1041,43 @@ export default function App() {
            </div>
         </section>
 
+        <SystemManifesto />
+
+        {/* Footer */}
+        <footer className="py-20 bg-[#002F5C] text-white">
+           <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-12">
+              <div className="col-span-2">
+                 <div className="font-black text-3xl mb-6 tracking-tighter uppercase text-blue-400">Gen-Nexus.</div>
+                 <p className="text-white/50 text-sm font-bold leading-relaxed max-w-sm">
+                    A professional-grade genetic health graphing protocol. Built for families, 
+                    verified by science, and locked by neural encryption.
+                 </p>
+              </div>
+              <div>
+                 <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-6">Navigation</h4>
+                 <nav className="flex flex-col gap-4">
+                    <a href="#features" className="text-xs font-bold hover:text-blue-400 transition-colors">Features</a>
+                    <a href="#how-it-works" className="text-xs font-bold hover:text-blue-400 transition-colors">How it Works</a>
+                    <a href="#security" className="text-xs font-bold hover:text-blue-400 transition-colors">Security</a>
+                 </nav>
+              </div>
+              <div>
+                 <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-6">Contact</h4>
+                 <a href="https://wa.me/447873404080" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-xs font-bold bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-all">
+                    <Activity className="w-4 h-4 text-emerald-400" />
+                    WhatsApp Technical Support
+                 </a>
+              </div>
+           </div>
+           <div className="max-w-7xl mx-auto px-6 mt-20 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
+              <p className="text-[9px] font-black uppercase tracking-widest text-white/20">© 2026 Gen-Nexus Health Protocol. All rights reserved.</p>
+              <div className="flex gap-8">
+                 <span className="text-[9px] font-black uppercase tracking-widest text-white/20">Privacy Vault Certified</span>
+                 <span className="text-[9px] font-black uppercase tracking-widest text-white/20">GDPR Compliant Architecture</span>
+              </div>
+           </div>
+        </footer>
+
         {/* Mobile Menu Overlay */}
         <AnimatePresence>
           {isMobileMenuOpen && (
@@ -1090,11 +1126,11 @@ export default function App() {
           </div>
           <div className="space-y-6">
             <h2 className="text-4xl font-black text-white uppercase tracking-tighter">
-              Identity Verification Pending
+              Verify Neural Identity
             </h2>
             <p className="text-white/70 text-sm font-bold leading-relaxed">
               We've dispatched a secure sync link to <span className="text-blue-400 font-black">{user.email}</span>. 
-              GIM is monitoring the nexus for auto-authorization. 
+              GIM is monitoring the nexus for automated authorization. 
             </p>
             <div className="flex items-center justify-center gap-3 py-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
@@ -1119,47 +1155,14 @@ export default function App() {
 
   if (user && !family) {
     return (
-      <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-8 bg-[#002F5C]">
-        <AnimatePresence mode="wait">
-          <motion.div 
-            key={bgIndex}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 2 }}
-            className={`absolute inset-0 z-0 ${bgs[bgIndex]}`}
-          />
-        </AnimatePresence>
-        
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="relative z-10 max-w-md w-full text-center space-y-10 bg-white/10 backdrop-blur-3xl p-12 rounded-[3.5rem] border border-white/10 shadow-2xl"
+      <div className="flex flex-col items-center justify-center h-screen bg-[#002F5C] font-sans text-white gap-6">
+        <motion.div
+  animate={{ rotate: 360, scale: [1, 1.2, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
         >
-          <div className="w-20 h-20 bg-blue-500 rounded-[2rem] flex items-center justify-center mx-auto shadow-2xl shadow-blue-500/30">
-            <Shield className="w-10 h-10 text-white" />
-          </div>
-          <div className="space-y-4">
-            <h2 className="text-4xl font-black text-white uppercase tracking-tighter">
-              Protocol Ready
-            </h2>
-            <p className="text-white/60 text-[10px] font-bold leading-relaxed uppercase tracking-widest">
-              {userRole === 'owner' || user?.email === 'njaudavid5@gmail.com'
-                ? 'Your individual health biosphere is primed. Deploy your private data vault below to start modeling.' 
-                : 'Connection pending. If you expect a family link, remain active. You can also initialize an individual vault.'}
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <Button onClick={createFamily} className="w-full h-20 text-xs font-black uppercase tracking-[0.2em] rounded-[2rem] bg-white text-[#002F5C] hover:scale-105 transition-all shadow-2xl shadow-blue-900/50 flex items-center justify-center gap-4">
-              <Plus className="w-6 h-6" /> {userRole === 'owner' || user?.email === 'njaudavid5@gmail.com' ? 'Launch Individual Vault' : 'Initialize Personal Nexus'}
-            </Button>
-            
-            <Button onClick={logout} variant="ghost" className="w-full text-white/40 uppercase font-black text-[10px] tracking-widest hover:text-white">
-              Exit Protocol
-            </Button>
-          </div>
+          <Database className="w-16 h-16 text-blue-400" />
         </motion.div>
+        <div className="text-sm font-black uppercase tracking-[0.3em] animate-pulse whitespace-nowrap">Initialising Personal Vault...</div>
       </div>
     );
   }
@@ -1958,10 +1961,8 @@ export default function App() {
                      </div>
                      <div className="flex gap-4">
                         <Dialog>
-                          <DialogTrigger asChild>
-                            <Button variant="outline" className="h-11 px-6 rounded-2xl text-[9px] font-black uppercase tracking-widest border-slate-100 text-slate-600 hover:bg-slate-50 transition-all">
-                              <Info className="w-4 h-4 mr-2" /> Inheritance Patterns
-                            </Button>
+                          <DialogTrigger render={<Button variant="outline" className="h-11 px-6 rounded-2xl text-[9px] font-black uppercase tracking-widest border-slate-100 text-slate-600 hover:bg-slate-50 transition-all" />}>
+                            <Info className="w-4 h-4 mr-2" /> Inheritance Patterns
                           </DialogTrigger>
                           <DialogContent className="max-w-2xl rounded-[3rem] p-12 border-none shadow-2xl bg-white overflow-y-auto max-h-[85vh]">
                             <DialogHeader>
